@@ -341,6 +341,12 @@ class Store:
             c.execute("UPDATE call_events SET result='applied' WHERE event_id=?", (ev.event_id,))
             return "applied"
 
+    def touch_call(self, call_id: str, now: float) -> None:
+        with self.tx() as c:
+            c.execute("UPDATE calls SET updated_at=? WHERE id=? AND state NOT IN (?,?,?)",
+                      (now, call_id, CallState.COMPLETED.value, CallState.FAILED.value,
+                       CallState.CANCELLED.value))
+
     def cancel_call(self, call_id: str, now: float, reason: str) -> None:
         """Used by recovery paths (lease expiry, vanished agent)."""
         with self.tx() as c:
@@ -468,14 +474,14 @@ class Store:
         recent_n = len(recent)
         recent_rate = sum(r[0] for r in recent) / recent_n if recent_n else p_hat
         win = c.execute("SELECT COALESCE(SUM(answered),0), COALESCE(SUM(abandoned),0) FROM "
-                        "(SELECT answered, abandoned FROM outcomes WHERE campaign=? ORDER BY id DESC LIMIT 300)",
-                        (campaign,)).fetchone()
+                        "(SELECT answered, abandoned FROM outcomes WHERE campaign=? ORDER BY id DESC LIMIT ?)",
+                        (campaign, cfg.abandon_window)).fetchone()
         answered_window, abandoned_window = win[0], win[1]
         abandon_rate = abandoned_window / answered_window if answered_window else 0.0
 
         return Snapshot(
             now=now, available=available, logged_in=logged_in, in_flight=in_flight,
-            supply_soon=available + connected + wrapping, ready_borrowers=ready,
+            supply_soon=available + wrapping + cfg.connected_weight * connected, ready_borrowers=ready,
             attempts=st["attempts"], answered=st["answered"], p_hat=p_hat, p_upper=p_upper,
             recent_rate=recent_rate, recent_n=recent_n, abandon_rate=abandon_rate,
             answered_window=answered_window, avg_talk=avg_talk,

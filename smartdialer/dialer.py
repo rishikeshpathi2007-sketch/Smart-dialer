@@ -77,6 +77,7 @@ class Dialer:
             else:
                 self.store.apply_event(ProviderEvent(f"reconcile:{r['id']}:{state}", r["id"], state),
                                        now, reason="RECONCILED")
+            self.store.touch_call(r["id"], now)   # next query only after another quiet period
             report["reconciled"] += 1
 
     def _sweep(self, now: float, report: Counter) -> None:
