@@ -10,7 +10,7 @@ Design, state machines, failure analysis and scale notes are in
 
 ## Requirements
 
-* Python 3.10+ (tested on 3.13). No third-party packages.
+* Python 3 (tested on 3.13). No third-party packages.
 
 ## Setup
 
