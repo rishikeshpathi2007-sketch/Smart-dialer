@@ -23,10 +23,10 @@ from smartdialer.store import Store
 from smartdialer.allocator import PermitError
 
 
-def make_env(agents=5, borrowers=50, mode="progressive", providers=None, cfg=None, answer=0.5):
+def make_env(agents=5, borrowers=50, mode="progressive", providers=None, cfg=None, answer=0.5, clock=None):
     tmp = tempfile.mkdtemp()
     db = os.path.join(tmp, "dialer.db")
-    clock = SimClock(1000.0)
+    clock = clock or SimClock(1000.0)   # providers must share this clock, or their events never come due
     cfg = cfg or Config()
     s = Store(db, cfg, clock)
     for i in range(agents):
@@ -190,7 +190,7 @@ class CrashRecoveryTests(unittest.TestCase):
         provider = MockProvider("p1", clock, lambda t: 0.0, seed=3, setup_secs=(1.0, 1.0),
                                 ambiguous_rate=1.0)
         dialer, clock, providers, _ = make_env(agents=1, borrowers=1, mode="progressive",
-                                               providers=[provider])
+                                               providers=[provider], clock=clock)
         heartbeat_all(dialer, clock, 1)
         dialer.tick()
         self.assertEqual(provider.dial_count, 1)
@@ -291,6 +291,57 @@ class DispatchTests(unittest.TestCase):
         heartbeat_all(dialer, clock, 1)
         dialer.tick()
         self.assertEqual(dialer.store.counts("C")["AVAILABLE"], 1)
+
+
+class MidFlightFailureTests(unittest.TestCase):
+    def test_crash_after_initiated_committed_but_before_provider_call(self):
+        """Write-ahead INITIATED is committed, then the worker dies before originate().
+        The provider never saw the call, so reconciliation must fail it and retry the borrower."""
+        dialer, clock, providers, _ = make_env(agents=1, borrowers=1, mode="progressive", answer=1.0)
+        heartbeat_all(dialer, clock, 1)
+        decision = dialer.controller.authorize("C", "progressive", 1, provider_ok=True)
+        with dialer.store.tx() as c:
+            batch = dialer.store.begin_dispatch(c, decision.permit.id, "p1", clock.now())
+        self.assertEqual(len(batch), 1)              # INITIATED is committed ...
+        self.assertEqual(providers[0].dial_count, 0)  # ... but the provider was never called
+        for _ in range(12):                      # 60s: reconcile at ~10s, retry backoff 30s
+            clock.advance(5)
+            heartbeat_all(dialer, clock, 1)
+            dialer.tick()
+        call = dialer.store.conn.execute("SELECT state, reason FROM calls ORDER BY created_at LIMIT 1").fetchone()
+        self.assertEqual(call["state"], "FAILED")
+        self.assertEqual(call["reason"], "NOT_FOUND_AT_PROVIDER")
+        # Borrower was requeued and then dialled exactly once, by a fresh permit.
+        self.assertEqual(providers[0].dial_count, 1)
+
+    def test_outage_during_existing_call_defers_then_completes(self):
+        """Provider goes down while a call is ringing. Its events freeze, the dialer
+        defers the query instead of guessing, nothing new gets through, and the
+        existing call completes once the provider is back."""
+        clock = SimClock(1000.0)
+        provider = MockProvider("p1", clock, lambda t: 1.0, seed=9, setup_secs=(1.0, 1.0),
+                                ring_secs=5.0, talk_secs_fn=lambda r: 60.0)
+        dialer, clock, providers, _ = make_env(agents=1, borrowers=3, mode="progressive",
+                                               providers=[provider], clock=clock)
+        heartbeat_all(dialer, clock, 1)
+        dialer.tick()                       # call dialled and ringing
+        self.assertEqual(provider.dial_count, 1)
+        provider.outage = True
+        deferred = 0
+        for _ in range(12):
+            clock.advance(5)
+            heartbeat_all(dialer, clock, 1)
+            rep = dialer.tick()
+            deferred += rep.get("reconcile_deferred", 0)
+        self.assertGreater(deferred, 0)                 # queries were deferred, not guessed
+        self.assertEqual(provider.dial_count, 1)         # no new call got through the outage
+        provider.outage = False
+        for _ in range(10):
+            clock.advance(5)
+            heartbeat_all(dialer, clock, 1)
+            dialer.tick()
+        state = dialer.store.conn.execute("SELECT state FROM calls ORDER BY created_at LIMIT 1").fetchone()["state"]
+        self.assertEqual(state, "COMPLETED")
 
 
 if __name__ == "__main__":

@@ -85,6 +85,14 @@ Full run: `python -m smartdialer.simulate --agents 50 --duration 1800`
 | E: 50% answer, 40% of agents stop heartbeating at 600s | progressive | 74.0% | 853 | 426 | 426 | 0 | 0.0% |
 | E: 50% answer, 40% of agents stop heartbeating at 600s | predictive | 76.8% | 906 | 444 | 444 | 0 | 0.0% |
 
+Scenario E at the assignment's exact size (100 agents, 40 of them drop out),
+run separately:
+
+| Mode | Utilisation | Answered | Abandoned | Abandon % | Lost agents detected |
+|---|---|---|---|---|---|
+| progressive | 74.9% | 869 | 0 | 0.0% | 15s |
+| predictive | 79.3% | 915 | 5 | 0.5% | 15s |
+
 Utilisation = agent-seconds in CONNECTED / agent-seconds logged in (WRAP_UP counts as idle).
 In scenario E the dialer noticed the lost agents 15s after they stopped
 heartbeating (the heartbeat timeout), and cancelled their calls.
