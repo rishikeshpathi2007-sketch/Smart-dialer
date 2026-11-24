@@ -117,14 +117,14 @@ class Config:
     default_answer_rate: float = 0.3  # prior used before any outcomes are observed
     prior_weight: float = 10.0        # pseudo-count behind the prior
     decay: float = 0.98               # per-outcome decay: recent outcomes count more
-    z: float = 1.645                  # ~95% one-sided: overflow allowed in the pacing bound
-    horizon: float = 20.0             # look-ahead for agents becoming free
-    connected_weight: float = 0.5     # trust placed on agents that are only *expected* to free up
+    z: float = 2.33                   # ~99% one-sided: overflow allowed in the pacing bound
+    horizon: float = 10.0             # look-ahead for agents becoming free (~ring + answer lag)
+    connected_weight: float = 0.25    # trust placed on agents that are only *expected* to free up
     max_new_per_tick: int = 200
     max_in_flight_per_agent: float = 1.5
     max_abandon_rate: float = 0.03    # compliance threshold for answered-but-no-agent calls
     abandon_window: int = 100         # recent resolved attempts used for the abandon-rate check
-    shock_window: int = 20           # recent outcomes used for answer-rate shock detection
-    shock_factor: float = 1.5         # recent answer rate > factor * estimate => shock
+    shock_window: int = 30            # recent outcomes used for answer-rate shock detection
+    shock_z: float = 2.5              # shock = recent answers significantly above the estimate
     breaker_threshold: int = 5        # consecutive provider errors before opening the breaker
     breaker_cooldown: float = 30.0

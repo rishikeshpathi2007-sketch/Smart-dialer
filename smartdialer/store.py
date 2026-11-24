@@ -136,6 +136,7 @@ class Snapshot:
     p_upper: float        # conservative (upper) answer rate
     recent_rate: float    # answer rate over the last `shock_window` outcomes
     recent_n: int
+    pending_unbound: int  # predictive calls still ringing that will need an agent when answered
     abandon_rate: float   # abandoned / answered over the last 300 outcomes
     answered_window: int
     avg_talk: float
@@ -149,6 +150,7 @@ class Store:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA busy_timeout=60000")
+        self.conn.execute("PRAGMA synchronous=NORMAL")  # WAL: durable across crashes, skips fsync per commit
         self.conn.executescript(SCHEMA)
 
     def close(self) -> None:
@@ -454,6 +456,10 @@ class Store:
             "SELECT COUNT(*) FROM calls WHERE campaign=? AND state IN (?,?,?,?)",
             (campaign, CallState.QUEUED.value, CallState.RESERVED.value,
              CallState.INITIATED.value, CallState.RINGING.value)).fetchone()[0]
+        pending_unbound = c.execute(
+            "SELECT COUNT(*) FROM calls WHERE campaign=? AND agent_id IS NULL AND state IN (?,?,?)",
+            (campaign, CallState.QUEUED.value, CallState.INITIATED.value,
+             CallState.RINGING.value)).fetchone()[0]
         st = c.execute("SELECT * FROM campaign_stats WHERE campaign=?", (campaign,)).fetchone()
         avg_talk = st["talk_secs"] / st["talk_n"] if st["talk_n"] else 120.0
         connected = c.execute(
@@ -481,9 +487,10 @@ class Store:
 
         return Snapshot(
             now=now, available=available, logged_in=logged_in, in_flight=in_flight,
-            supply_soon=available + wrapping + cfg.connected_weight * connected, ready_borrowers=ready,
+            supply_soon=available + cfg.connected_weight * (wrapping + connected), ready_borrowers=ready,
             attempts=st["attempts"], answered=st["answered"], p_hat=p_hat, p_upper=p_upper,
             recent_rate=recent_rate, recent_n=recent_n, abandon_rate=abandon_rate,
+            pending_unbound=pending_unbound,
             answered_window=answered_window, avg_talk=avg_talk,
         )
 

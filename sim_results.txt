@@ -1,0 +1,11 @@
+scenario                         mode           util  dialed answered connected abandoned abandon%  decisions
+A: 20% answer, 120s talk         progressive   47.1%    2023      367       367         0     0.0%  {'APPROVE': 1130}
+A: 20% answer, 120s talk         predictive    66.6%    2571      524       524         0     0.0%  {'FALLBACK': 8, 'HOLD': 77, 'REDUCE': 811, 'REJECT': 904}
+B: 50% answer, 90s talk          progressive   68.5%    1411      704       704         0     0.0%  {'APPROVE': 961}
+B: 50% answer, 90s talk          predictive    73.6%    1468      757       757         0     0.0%  {'FALLBACK': 15, 'HOLD': 23, 'REDUCE': 880, 'REJECT': 882}
+C: 70% answer, 180s talk         progressive   86.5%     667      457       457         0     0.0%  {'APPROVE': 519}
+C: 70% answer, 180s talk         predictive    87.5%     671      470       464         6     1.3%  {'APPROVE': 184, 'FALLBACK': 304, 'HOLD': 489, 'REDUCE': 245, 'REJECT': 578}
+D: changing 70->10->50%          progressive   63.7%    1439      498       498         0     0.0%  {'APPROVE': 863}
+D: changing 70->10->50%          predictive    72.8%    2050      578       566        12     2.1%  {'APPROVE': 53, 'FALLBACK': 370, 'HOLD': 181, 'REDUCE': 550, 'REJECT': 646}
+E: 50% answer, 40% agents drop   progressive   74.0%     853      426       426         0     0.0%  {'APPROVE': 636}  drop reacted in 15s
+E: 50% answer, 40% agents drop   predictive    76.8%     906      444       444         0     0.0%  {'APPROVE': 14, 'FALLBACK': 15, 'HOLD': 125, 'REDUCE': 593, 'REJECT': 1053}  drop reacted in 15s

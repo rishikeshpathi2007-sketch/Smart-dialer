@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import math
 import os
 import uuid
 from dataclasses import dataclass
@@ -27,7 +28,7 @@ from typing import Optional
 
 from .model import Config
 from .pacing import max_new_calls
-from .store import Store
+from .store import Snapshot, Store
 
 
 @dataclass(frozen=True)
@@ -89,14 +90,19 @@ class SafetyController:
             else:  # predictive
                 if snap.answered_window >= 30 and snap.abandon_rate > cfg.max_abandon_rate:
                     fallback_reason = f"ABANDON_RATE {snap.abandon_rate:.3f} > {cfg.max_abandon_rate}"
-                elif (snap.recent_n >= cfg.shock_window
-                      and snap.recent_rate > cfg.shock_factor * max(snap.p_hat, 0.05)):
+                elif snap.recent_n >= cfg.shock_window and self._surge(snap):
                     fallback_reason = (f"ANSWER_RATE_SHOCK recent {snap.recent_rate:.2f} "
                                        f"vs estimate {snap.p_hat:.2f}")
 
                 if fallback_reason:
                     used_mode = "progressive"
-                    want = min(cfg.max_new_per_tick, snap.available)
+                    # Keep back agents for predictive calls already ringing: they will
+                    # need an agent when they answer, and must not find none.
+                    p = snap.p_upper
+                    reserve = snap.pending_unbound * p + cfg.z * math.sqrt(
+                        max(snap.pending_unbound * p * (1 - p), 0.0))
+                    spare = int(math.floor(snap.available - reserve))
+                    want = max(0, min(cfg.max_new_per_tick, spare))
                     granted = self.store.reserve_progressive(c, campaign, want, permit_id, now)
                     decision, reason = "FALLBACK", fallback_reason
                 else:
@@ -125,6 +131,14 @@ class SafetyController:
 
         permit = Permit(permit_id, campaign, used_mode, granted, expires, mac)
         return Decision(permit, decision, reason, requested)
+
+    def _surge(self, snap: Snapshot) -> bool:
+        """Is the recent answer rate significantly above the estimate? (one-sided z-test)"""
+        p = max(snap.p_hat, 0.05)
+        n = snap.recent_n
+        k = snap.recent_rate * n
+        z = (k - n * p) / math.sqrt(max(n * p * (1 - p), 1e-9))
+        return z > self.cfg.shock_z
 
     @staticmethod
     def _verdict(requested: int, granted: int, ok_reason: str) -> tuple[str, str]:
