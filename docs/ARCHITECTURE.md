@@ -177,8 +177,8 @@ upper-bound `p`, which can cut this further.
 rate within about 50 outcomes, so pacing raises calls to refill agents. That
 raises utilisation risk, not compliance risk, and it is bounded by
 `max_new_per_tick` and the in-flight cap. The compliance risk is the reverse
-case, answers rising suddenly. That is caught by the shock rule (recent 20
-outcomes against the estimate), which falls back to progressive at once. The
+case, answers rising suddenly. That is caught by the shock rule (a z-test of
+the last 30 outcomes against the estimate), which falls back to progressive at once. The
 abandon-rate check is the second line of defence.
 
 ## 7. Choices of stack and why
