@@ -178,6 +178,14 @@ The 1,000-agent figures above are from the re-run after the index change. The ea
 - **Save the simulation output to a file.** The simulation prints to the terminal. To keep a copy, run `python -m smartdialer.simulate > sim_results.txt`.
 - **No git installed.** On the GitHub page, choose Code, then Download ZIP. Unzip it, and open PowerShell in the unzipped folder.
 
+## Final answer
+
+**Question:** How would you get as much of predictive dialing's utilisation as possible while keeping progressive dialing's deterministic safety?
+
+Make the safety property a data-flow fact, not a tuning. Every call that can reach a provider must come from one serialised decision that checks agent availability against the upper bound of the answer rate. Inside that boundary, predict aggressively: learn the answer rate quickly, dial only into agents that are provably free, and fall back to agent-first progressive claims whenever the assumptions break. Utilisation comes from the accuracy of the estimate. Safety comes from a ceiling that no estimate can exceed.
+
+The longer discussion is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), section 9, and [docs/DESIGN-DETAILS.md](docs/DESIGN-DETAILS.md), section 10.
+
 ## Limitations
 
 * SQLite on one host: several worker processes share a correct database, but
