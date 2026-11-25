@@ -1,6 +1,6 @@
 # SmartDialer: full design details
 
-This is the long version. The short overview is in [ARCHITECTURE.md](ARCHITECTURE.md). The decisions are in [DECISIONS.md](DECISIONS.md). Diagram sources are in [diagrams/](diagrams/).
+This is the long version. The short overview is in [ARCHITECTURE.md](ARCHITECTURE.md). The decisions are in [DECISIONS.md](DECISIONS.md). The Mermaid sources for the diagrams sit beside the PNG files.
 
 This document covers the design, the state machines, the concurrency argument,
 the failure cases, the pacing maths, the scale analysis, and the answer to the
@@ -8,7 +8,7 @@ final question in the assignment.
 
 ## 1. Architecture
 
-![Architecture: pacing proposes, the safety controller decides, the allocator dials](diagrams/architecture.png)
+![Architecture: pacing proposes, the safety controller decides, the allocator dials](architecture.png)
 
 Only the Safety Controller can create call rows. Only the Call Allocator can
 talk to a provider, and it refuses to dial anything that is not inside a valid,
@@ -24,13 +24,13 @@ Each worker is a `Dialer` process running `tick()`:
 
 ## 2. Agent state machine
 
-![Agent state machine](diagrams/agent-state-machine.png)
+![Agent state machine](agent-state-machine.png)
 
 Illegal moves raise an error (`AGENT_TRANSITIONS` in `model.py`).
 
 ## 3. Call state machine
 
-![Call state machine](diagrams/call-state-machine.png)
+![Call state machine](call-state-machine.png)
 
 The rule that makes events safe to replay and reorder, `next_call_state()`:
 

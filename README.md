@@ -6,7 +6,7 @@ agent and call state machines, two mock providers that behave differently, and
 tests for the failure cases in the assignment.
 
 Design, state machines, failure analysis and scale notes are in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (short overview) and [docs/DESIGN-DETAILS.md](docs/DESIGN-DETAILS.md) (full reasoning).
+[ARCHITECTURE.md](ARCHITECTURE.md) (short overview) and [DESIGN-DETAILS.md](DESIGN-DETAILS.md) (full reasoning).
 
 ## Requirements
 
@@ -69,10 +69,10 @@ python -m smartdialer.loadtest --agents 10000 --borrowers 60000 --ticks 30
 | `smartdialer/simulate.py` | Scenario runner |
 | `smartdialer/loadtest.py` | Reservation race and tick throughput |
 | `tests/test_dialer.py` | 25 unit tests for races, crashes, duplicates, out-of-order events, outages and permits |
-| `docs/ARCHITECTURE.md` | Short overview: diagrams, state machines, failures, pacing, scale |
-| `docs/DESIGN-DETAILS.md` | Full design reasoning, with the same diagrams |
-| `docs/diagrams/` | Architecture and state-machine diagrams as PNG, with Mermaid sources |
-| `docs/DECISIONS.md` | Short decision record: each choice, its options, its costs, and what was left out |
+| `ARCHITECTURE.md` | Short overview: diagrams, state machines, failures, pacing, scale |
+| `DESIGN-DETAILS.md` | Full design reasoning, with the same diagrams |
+| `architecture.png`, `agent-state-machine.png`, `call-state-machine.png` | Architecture and state-machine diagrams as PNG, with Mermaid sources (`.mmd`) |
+| `DECISIONS.md` | Short decision record: each choice, its options, its costs, and what was left out |
 
 ## How the pieces connect
 
@@ -165,7 +165,7 @@ cause: a claim query sorted every waiting borrower, because the index did not co
 sort order. Adding claim indexes (`ix_borrowers_claim`, `ix_agents_claim`) made that run
 about 12 times faster. Scenario A's results were checked to be identical before and after.
 The next bottleneck is one database transaction per provider event; see section 8 of
-`docs/DESIGN-DETAILS.md`.
+`DESIGN-DETAILS.md`.
 
 The 1,000-agent figures above are from the re-run after the index change. The earlier
 1,000-agent run in this README came before the fallback fix, so its dial count differs.
@@ -184,12 +184,12 @@ The 1,000-agent figures above are from the re-run after the index change. The ea
 
 Make the safety property a data-flow fact, not a tuning. Every call that can reach a provider must come from one serialised decision that checks agent availability against the upper bound of the answer rate. Inside that boundary, predict aggressively: learn the answer rate quickly, dial only into agents that are provably free, and fall back to agent-first progressive claims whenever the assumptions break. Utilisation comes from the accuracy of the estimate. Safety comes from a ceiling that no estimate can exceed.
 
-The longer discussion is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), section 9, and [docs/DESIGN-DETAILS.md](docs/DESIGN-DETAILS.md), section 10.
+The longer discussion is in [ARCHITECTURE.md](ARCHITECTURE.md), section 9, and [DESIGN-DETAILS.md](DESIGN-DETAILS.md), section 10.
 
 ## Limitations
 
 * SQLite on one host: several worker processes share a correct database, but
-  there is no multi-host coordination. See section 8 of `docs/DESIGN-DETAILS.md`.
+  there is no multi-host coordination. See section 8 of `DESIGN-DETAILS.md`.
 * The providers are simulated. The `Provider` interface is what a real
   integration would implement.
 * The 3% abandon threshold is a design parameter, not a compliance check.

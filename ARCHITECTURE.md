@@ -4,7 +4,7 @@ This is the one-page overview. The decisions are in [DECISIONS.md](DECISIONS.md)
 
 ## 1. Components
 
-![Architecture: pacing proposes, the safety controller decides, the allocator dials](diagrams/architecture.png)
+![Architecture: pacing proposes, the safety controller decides, the allocator dials](architecture.png)
 
 - **Pacing engine** proposes how many calls to start. It cannot create calls.
 - **Safety Controller** decides what is allowed, and signs each decision as a permit. It is the only code that creates call rows.
@@ -17,11 +17,11 @@ Each worker runs one tick: ingest provider events, reconcile calls that have gon
 
 Agent: AVAILABLE, RESERVED, DIALING, CONNECTED, WRAP_UP, plus OFFLINE and PAUSED. Illegal moves are rejected.
 
-![Agent state machine](diagrams/agent-state-machine.png)
+![Agent state machine](agent-state-machine.png)
 
 Call: provider events only move a call forward. A repeated event changes nothing. Terminal states (COMPLETED, FAILED, CANCELLED) never change.
 
-![Call state machine](diagrams/call-state-machine.png)
+![Call state machine](call-state-machine.png)
 
 ## 3. Concurrency
 
