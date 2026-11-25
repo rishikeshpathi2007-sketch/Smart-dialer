@@ -10,7 +10,7 @@ Design, state machines, failure analysis and scale notes are in
 
 ## Requirements
 
-* Python 3 (tested on 3.13). No third-party packages.
+* Python 3. No third-party packages. Tested on Windows with Python 3.13 only.
 
 ## Setup
 
@@ -19,7 +19,7 @@ git clone https://github.com/rishikeshpathi2007-sketch/Smart-dialer.git
 cd Smart-dialer
 ```
 
-## Run the tests
+## Run the tests (about 1 second)
 
 ```powershell
 python -m unittest discover -s tests -v
@@ -30,14 +30,28 @@ python -m unittest discover -s tests -v
 Runs scenarios A to E (20%, 50%, 70% answer rates; changing rates with a
 provider outage; sudden loss of 40% of agents) in both modes:
 
+Full run (about 7 minutes on the test machine):
+
 ```powershell
 python -m smartdialer.simulate --agents 50 --duration 1800
 ```
 
-## Run the load test
+Quick check (about 30 seconds). It runs 300 simulated seconds per scenario, so the numbers differ from the full run:
+
+```powershell
+python -m smartdialer.simulate --quick
+```
+
+## Run the load test (under 15 seconds)
 
 ```powershell
 python -m smartdialer.loadtest --agents 1000 --borrowers 20000 --ticks 120
+```
+
+For 10,000 agents, which takes about 12 seconds:
+
+```powershell
+python -m smartdialer.loadtest --agents 10000 --borrowers 60000 --ticks 30
 ```
 
 ## Layout

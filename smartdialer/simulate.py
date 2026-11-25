@@ -160,7 +160,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--agents", type=int, default=50)
     ap.add_argument("--duration", type=int, default=1800)
+    ap.add_argument("--quick", action="store_true",
+                    help="a 300-second run per scenario, for a fast check (the full run takes several minutes)")
     args = ap.parse_args()
+    if args.quick:
+        args.duration = 300
     cfg = Config()
     results = []
     print(f"{'scenario':32s} {'mode':12s} {'util':>6s} {'dialed':>7s} {'answered':>8s} "
