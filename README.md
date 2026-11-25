@@ -8,6 +8,20 @@ tests for the failure cases in the assignment.
 Design, state machines, failure analysis and scale notes are in
 [ARCHITECTURE.md](ARCHITECTURE.md) (short overview) and [DESIGN-DETAILS.md](DESIGN-DETAILS.md) (full reasoning).
 
+## Start here
+
+| What you want | Where it is |
+|---|---|
+| The short answer to the final question | [Final answer](#final-answer) below |
+| The architecture in one page | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| The decisions, options and trade-offs | [DECISIONS.md](DECISIONS.md) |
+| The full design reasoning | [DESIGN-DETAILS.md](DESIGN-DETAILS.md) |
+| The diagrams | [Diagrams](#diagrams) below |
+| Simulation results | [Results](#results) below, and [sim_results.txt](sim_results.txt) |
+| Load test results | [loadtest_10000.txt](loadtest_10000.txt) |
+| Where each requirement is in the code | [Code map](#where-to-find-each-requirement-in-the-code) below |
+| Run everything yourself | [Setup](#setup) and the commands below |
+
 ## Requirements
 
 * Python 3. No third-party packages. Tested on Windows with Python 3.13 only.
@@ -84,6 +98,42 @@ Campaign > Pacing Engine (propose n) > Safety Controller (decide, sign permit)
 The pacing engine cannot create calls. The controller is the only code that
 writes call rows, and the allocator only dials calls that belong to a valid,
 unexpired, not-yet-dispatched permit.
+
+## Diagrams
+
+Architecture: pacing proposes, the safety controller decides, the allocator dials.
+
+![Architecture](architecture.png)
+
+Agent state machine:
+
+![Agent state machine](agent-state-machine.png)
+
+Call state machine:
+
+![Call state machine](call-state-machine.png)
+
+## Where to find each requirement in the code
+
+Line numbers are for the current commit.
+
+| Requirement | File | Key function (line) |
+|---|---|---|
+| Progressive dialer | `smartdialer/progressive.py` | `ProgressiveDialer.request_size` (29), `spare_agents` (33). The agent and borrower claims are in `store.py`, `reserve_progressive` (252) |
+| Predictive pacing engine | `smartdialer/pacing.py` | `max_new_calls` (28), `PacingEngine.propose` (45) |
+| Safety controller | `smartdialer/safety.py` | `SafetyController.authorize` (71), `_surge` (133), `verify` (66) |
+| Call allocator (the only code that dials) | `smartdialer/allocator.py` | `CallAllocator.dispatch` (83) |
+| Mock providers A and B | `smartdialer/providers.py` | `MockProvider.originate` (104), `provider_a` (169), `provider_b` (178) |
+| Agent and call state machines | `smartdialer/model.py` | `AGENT_TRANSITIONS`, `next_call_state` (82) |
+| Two workers cannot claim one agent | `smartdialer/store.py` | `_cas` (201), `_claim_agent` (217) |
+| Write-ahead dispatch | `smartdialer/store.py` | `begin_dispatch` (301) |
+| Duplicate and out-of-order events | `smartdialer/store.py` | `apply_event` (330), `_transition` (367) |
+| Crash recovery and reconciliation | `smartdialer/dialer.py` | `Dialer._reconcile` (54) |
+| Agent disappears during setup | `smartdialer/store.py` | `expire_vanished_agents` (509) |
+| Worker loop (one tick) | `smartdialer/dialer.py` | `Dialer.tick` (36) |
+| Simulation | `smartdialer/simulate.py` | `scenarios`, `run` |
+| Load test | `smartdialer/loadtest.py` | `reservation_race`, `tick_throughput` |
+| Tests (25) | `tests/test_dialer.py` | run with `python -m unittest discover -s tests -v` |
 
 ## Results
 
