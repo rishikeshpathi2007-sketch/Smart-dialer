@@ -28,6 +28,7 @@ from typing import Optional
 
 from .model import Config
 from .pacing import max_new_calls
+from .progressive import ProgressiveDialer
 from .store import Snapshot, Store
 
 
@@ -55,6 +56,7 @@ class SafetyController:
         self.cfg = cfg
         self.clock = clock
         self._secret = secret or os.urandom(32)
+        self.progressive = ProgressiveDialer(store, cfg)
 
     # ---- permit signing ----------------------------------------------------
     def _mac(self, permit_id: str, campaign: str, mode: str, granted: int, expires_at: float) -> str:
@@ -84,7 +86,7 @@ class SafetyController:
             elif mode == "progressive":
                 # Progressive is agent-first, so it is safe by construction:
                 # the claims below can never exceed AVAILABLE agents.
-                granted = self.store.reserve_progressive(c, campaign, requested, permit_id, now)
+                granted = self.progressive.reserve(c, campaign, requested, permit_id, now)
                 decision, reason = self._verdict(requested, granted, "agents and borrowers claimed")
 
             else:  # predictive
@@ -96,14 +98,10 @@ class SafetyController:
 
                 if fallback_reason:
                     used_mode = "progressive"
-                    # Keep back agents for predictive calls already ringing: they will
-                    # need an agent when they answer, and must not find none.
-                    p = snap.p_upper
-                    reserve = snap.pending_unbound * p + cfg.z * math.sqrt(
-                        max(snap.pending_unbound * p * (1 - p), 0.0))
-                    spare = int(math.floor(snap.available - reserve))
-                    want = max(0, min(cfg.max_new_per_tick, spare))
-                    granted = self.store.reserve_progressive(c, campaign, want, permit_id, now)
+                    # Agents for predictive calls already ringing are held back inside
+                    # ProgressiveDialer.spare_agents, so their answers still find an agent.
+                    want = self.progressive.spare_agents(snap)
+                    granted = self.progressive.reserve(c, campaign, want, permit_id, now)
                     decision, reason = "FALLBACK", fallback_reason
                 else:
                     hard_cap = int(cfg.max_in_flight_per_agent * snap.logged_in) - snap.in_flight

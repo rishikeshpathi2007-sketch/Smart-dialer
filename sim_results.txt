@@ -9,3 +9,16 @@ D: changing 70->10->50%          progressive   63.7%    1439      498       498 
 D: changing 70->10->50%          predictive    72.8%    2050      578       566        12     2.1%  {'APPROVE': 53, 'FALLBACK': 370, 'HOLD': 181, 'REDUCE': 550, 'REJECT': 646}
 E: 50% answer, 40% agents drop   progressive   74.0%     853      426       426         0     0.0%  {'APPROVE': 636}  drop reacted in 15s
 E: 50% answer, 40% agents drop   predictive    76.8%     906      444       444         0     0.0%  {'APPROVE': 14, 'FALLBACK': 15, 'HOLD': 125, 'REDUCE': 593, 'REJECT': 1053}  drop reacted in 15s
+
+Pacing, averaged over the ticks where the controller was consulted:
+scenario                         mode         avg p-hat avg proposed avg granted avg in flight avg supply
+A: 20% answer, 120s talk         progressive      0.205          1.8        1.81          23.4        1.8
+A: 20% answer, 120s talk         predictive       0.228         16.9        1.46          30.5       16.9
+B: 50% answer, 90s talk          progressive      0.466          1.5        1.49          12.7        1.5
+B: 50% answer, 90s talk          predictive       0.486          4.1        0.83          13.3       13.3
+C: 70% answer, 180s talk         progressive      0.613          1.3        1.30           5.0        1.3
+C: 70% answer, 180s talk         predictive       0.629          1.2        0.38           5.1        6.3
+D: changing 70->10->50%          progressive      0.375          1.7        1.72          18.4        1.7
+D: changing 70->10->50%          predictive       0.412         12.4        1.17          24.0       12.4
+E: 50% answer, 40% agents drop   progressive      0.460          1.4        1.36           7.7        1.4
+E: 50% answer, 40% agents drop   predictive       0.465          2.7        0.51           8.6        9.0

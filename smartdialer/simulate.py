@@ -52,6 +52,36 @@ class Result:
     abandoned: int = 0
     decisions: dict = field(default_factory=dict)
     drop_reaction_secs: float | None = None
+    # Pacing, averaged over the ticks where the controller was consulted.
+    pace_ticks: int = 0
+    sum_p_hat: float = 0.0
+    sum_proposed: int = 0
+    sum_granted: int = 0
+    sum_in_flight: int = 0
+    sum_supply: float = 0.0
+
+    def _avg(self, total):
+        return total / self.pace_ticks if self.pace_ticks else 0.0
+
+    @property
+    def avg_p_hat(self) -> float:
+        return self._avg(self.sum_p_hat)
+
+    @property
+    def avg_proposed(self) -> float:
+        return self._avg(self.sum_proposed)
+
+    @property
+    def avg_granted(self) -> float:
+        return self._avg(self.sum_granted)
+
+    @property
+    def avg_in_flight(self) -> float:
+        return self._avg(self.sum_in_flight)
+
+    @property
+    def avg_supply(self) -> float:
+        return self._avg(self.sum_supply)
 
     @property
     def abandon_rate(self) -> float:
@@ -94,6 +124,14 @@ def run(sc: Scenario, mode: str, agents: int = 50, borrowers: int = 20000, durat
         alive = [a for a in agent_ids if a not in dropped]
         dialer.store.heartbeat(alive, t)
         dialer.tick()
+        if dialer.last_decision is not None:
+            decision, info = dialer.last_decision
+            res.pace_ticks += 1
+            res.sum_p_hat += info.get("p_hat", 0.0)
+            res.sum_proposed += info.get("proposed", 0)
+            res.sum_granted += decision.permit.granted
+            res.sum_in_flight += info.get("in_flight", 0)
+            res.sum_supply += info.get("supply", 0)
 
         counts = dialer.store.counts("C")
         connected = counts.get("CONNECTED", 0)
@@ -124,16 +162,26 @@ def main() -> None:
     ap.add_argument("--duration", type=int, default=1800)
     args = ap.parse_args()
     cfg = Config()
+    results = []
     print(f"{'scenario':32s} {'mode':12s} {'util':>6s} {'dialed':>7s} {'answered':>8s} "
           f"{'connected':>9s} {'abandoned':>9s} {'abandon%':>8s}  decisions")
     for sc in scenarios():
         for mode in ("progressive", "predictive"):
             r = run(sc, mode, agents=args.agents, duration=args.duration, cfg=cfg)
+            results.append(r)
             extra = ""
             if r.drop_reaction_secs is not None:
                 extra = f"  drop reacted in {r.drop_reaction_secs:.0f}s"
             print(f"{sc.name:32s} {mode:12s} {r.utilization*100:5.1f}% {r.dialed:7d} {r.answered:8d} "
                   f"{r.connected:9d} {r.abandoned:9d} {r.abandon_rate*100:7.1f}%  {r.decisions}{extra}")
+
+    print()
+    print("Pacing, averaged over the ticks where the controller was consulted:")
+    print(f"{'scenario':32s} {'mode':12s} {'avg p-hat':>9s} {'avg proposed':>12s} {'avg granted':>11s} "
+          f"{'avg in flight':>13s} {'avg supply':>10s}")
+    for r in results:
+        print(f"{r.scenario:32s} {r.mode:12s} {r.avg_p_hat:9.3f} {r.avg_proposed:12.1f} {r.avg_granted:11.2f} "
+              f"{r.avg_in_flight:13.1f} {r.avg_supply:10.1f}")
 
 
 if __name__ == "__main__":

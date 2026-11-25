@@ -47,13 +47,16 @@ python -m smartdialer.loadtest --agents 1000 --borrowers 20000 --ticks 120
 | `smartdialer/model.py` | Agent and call state machines, call-event rules, config |
 | `smartdialer/store.py` | SQLite persistence, CAS reservations, write-ahead dispatch, snapshots |
 | `smartdialer/providers.py` | Provider interface; `provider_a` (fast, reliable) and `provider_b` (slow, timeouts, duplicates, reordering) |
+| `smartdialer/progressive.py` | Progressive dialer: one free agent, one call; fallback budget that protects ringing predictive calls |
 | `smartdialer/pacing.py` | Predictive pacing engine (proposes only) |
 | `smartdialer/safety.py` | Safety Controller: sole creator of calls; signed permits; fallback rules |
 | `smartdialer/allocator.py` | Call Allocator: sole caller of providers; circuit breaker |
 | `smartdialer/dialer.py` | Worker tick: ingest, reconcile, sweep, plan, dispatch |
 | `smartdialer/simulate.py` | Scenario runner |
 | `smartdialer/loadtest.py` | Reservation race and tick throughput |
-| `tests/test_dialer.py` | Unit tests for races, crashes, duplicates, out-of-order events |
+| `tests/test_dialer.py` | 25 unit tests for races, crashes, duplicates, out-of-order events, outages and permits |
+| `docs/ARCHITECTURE.md` | Full design: state machines, failure analysis, pacing maths, scale |
+| `docs/DECISIONS.md` | Short decision record: each choice, its options, its costs, and what was left out |
 
 ## How the pieces connect
 
@@ -85,6 +88,28 @@ Full run: `python -m smartdialer.simulate --agents 50 --duration 1800`
 | E: 50% answer, 40% of agents stop heartbeating at 600s | progressive | 74.0% | 853 | 426 | 426 | 0 | 0.0% |
 | E: 50% answer, 40% of agents stop heartbeating at 600s | predictive | 76.8% | 906 | 444 | 444 | 0 | 0.0% |
 
+Pacing, averaged over the ticks where the controller was consulted (from the same run):
+
+| Scenario | Mode | Avg answer-rate estimate | Avg proposed | Avg granted | Avg in flight | Avg supply |
+|---|---|---|---|---|---|---|
+| A: 20% answer | progressive | 0.205 | 1.8 | 1.81 | 23.4 | 1.8 |
+| A: 20% answer | predictive | 0.228 | 16.9 | 1.46 | 30.5 | 16.9 |
+| B: 50% answer | progressive | 0.466 | 1.5 | 1.49 | 12.7 | 1.5 |
+| B: 50% answer | predictive | 0.486 | 4.1 | 0.83 | 13.3 | 13.3 |
+| C: 70% answer | progressive | 0.613 | 1.3 | 1.30 | 5.0 | 1.3 |
+| C: 70% answer | predictive | 0.629 | 1.2 | 0.38 | 5.1 | 6.3 |
+| D: changing rates | progressive | 0.375 | 1.7 | 1.72 | 18.4 | 1.7 |
+| D: changing rates | predictive | 0.412 | 12.4 | 1.17 | 24.0 | 12.4 |
+| E: 40% agents drop | progressive | 0.460 | 1.4 | 1.36 | 7.7 | 1.4 |
+| E: 40% agents drop | predictive | 0.465 | 2.7 | 0.51 | 8.6 | 9.0 |
+
+Read it this way. In predictive mode, "proposed" is what pacing asks for and "granted"
+is what the controller allows after its upper-bound check. For example, in scenario A
+pacing proposes 16.9 calls per tick on average and the controller grants 1.46. The gap is
+the safety margin at work. "Avg supply" is the agents expected to be free within the
+10-second horizon. Progressive rows show supply equal to the free agents, because that
+is the only limit in progressive mode.
+
 Scenario E at the assignment's exact size (100 agents, 40 of them drop out),
 run separately:
 
@@ -111,13 +136,23 @@ under the 3% limit in every run. Two caveats:
 
 ### Load test
 
-`python -m smartdialer.loadtest --agents 1000 --borrowers 20000 --ticks 60`:
+Run it with `python -m smartdialer.loadtest --agents <n> --borrowers <m> --ticks <t>`.
+Results on one Windows machine, single process, SQLite:
 
-* Reservation race: 1,000 agents, 8 threads, each with its own connection.
-  Every agent was claimed exactly once (`exactly-once=True`, 0.48s).
-* Dialer: 1,000 agents, 60 predictive ticks in 13.4s (4.5 ticks/s), single
-  process, SQLite on Windows. This is the first thing to fall over at scale:
-  see section 8 of the architecture doc.
+| Agents | Borrowers | Race (8 threads) | Race exactly-once | Dialer | Dials |
+|---|---|---|---|---|---|
+| 1,000 | 20,000 | 0.81 s | yes | 60 ticks in 6.6 s (9.0 ticks/s) | 2,735 |
+| 10,000 | 60,000 | 1.82 s | yes | 30 ticks in 11.9 s (2.5 ticks/s) | 5,991 |
+
+The first 10,000-agent run took 107.7 s for 30 ticks (0.3 ticks/s). Profiling found the
+cause: a claim query sorted every waiting borrower, because the index did not cover the
+sort order. Adding claim indexes (`ix_borrowers_claim`, `ix_agents_claim`) made that run
+about 12 times faster. Scenario A's results were checked to be identical before and after.
+The next bottleneck is one database transaction per provider event; see section 8 of the
+architecture doc.
+
+The 1,000-agent figures above are from the re-run after the index change. The earlier
+1,000-agent run in this README came before the fallback fix, so its dial count differs.
 
 ## Limitations
 

@@ -92,11 +92,13 @@ class Dialer:
                     pass  # the provider will eventually report COMPLETED; reconcile covers it
 
     def _plan(self, now: float, report: Counter) -> None:
+        self.last_decision = None   # set again below only if this tick actually asks the controller
         with self.store.tx() as c:
             snap = self.store.snapshot(c, self.campaign, now, self.cfg.horizon)
         if self.mode == "progressive":
-            requested = min(self.cfg.max_new_per_tick, snap.available)
-            info = {"agents_available": snap.available}
+            requested = self.controller.progressive.request_size(snap)
+            info = {"p_hat": snap.p_hat, "in_flight": snap.in_flight, "supply": snap.available,
+                    "proposed": requested}
             if requested == 0:
                 return
         else:

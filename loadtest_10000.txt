@@ -1,0 +1,2 @@
+reservation race: 10000 agents, 8 threads -> exactly-once=True in 1.82s
+dialer: 10000 agents, 30 ticks in 11.87s (2.5 ticks/s), dials=5991

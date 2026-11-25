@@ -196,22 +196,33 @@ abandon-rate check is the second line of defence.
 
 Ordered by when they fail as the agent count grows:
 
-1. **The single SQLite writer (around 1,000 agents).** Every tick takes the
-   write lock for heartbeats, every event, every claim, and every snapshot. The
-   load test (`python -m smartdialer.loadtest`) shows where ticks per second
-   start to fall. The fix is a real database (Postgres) with row-level locks,
-   and heartbeats moved off the hot table into an in-memory store with TTL.
-2. **The snapshot query.** `snapshot()` counts agents and calls on every
-   planning step. It is O(agents + in-flight calls) with no index on
-   `heartbeat`. The fix is to maintain counters incrementally, updated in the
+Measured first, then the ceiling. Profiling five ticks at 10,000 agents and
+60,000 borrowers (`cProfile`) found where the time went.
+
+1. **A missing claim index (found and fixed).** 20.5 of 22 seconds went to one
+   query: finding the next waiting borrower. The index covered the filter but not
+   the sort, so every claim sorted all waiting rows. Adding indexes that cover the
+   ORDER BY (`ix_borrowers_claim`, `ix_agents_claim`) cut the five ticks from
+   22.0 s to 1.8 s, about 12 times faster. The claim order is unchanged, and scenario A
+   gives identical results before and after.
+2. **One transaction per provider event (the next bottleneck).** After the index
+   fix, about 1.0 s of the 1.8 s goes to applying provider events, one transaction
+   each. Batching events per tick would remove most of that.
+3. **The single SQLite writer (the ceiling).** Every tick still takes the one write
+   lock for heartbeats, events, claims and snapshots. Load test at 10,000 agents:
+   reservation race exactly-once in 1.8 s; dialer 2.5 ticks per second (30 ticks
+   in 11.9 s). Beyond that, the fix is Postgres with row-level locks, and heartbeats
+   moved to an in-memory store with a TTL.
+4. **The snapshot query.** `snapshot()` counts agents and calls on every
+   planning step. The fix is to maintain counters incrementally, updated in the
    same transactions as the state changes, instead of recounting.
-3. **The reconciler.** It runs the same query over all stale calls each tick.
+5. **The reconciler.** It runs the same query over all stale calls each tick.
    At scale, reconciliation has to be driven by a timer wheel per call, not a
    scan.
-4. **Provider rate limits.** Each provider has a call-setup rate limit. The
+6. **Provider rate limits.** Each provider has a call-setup rate limit. The
    allocator needs a token bucket per provider; without one, a burst of
    permits becomes a burst of rejections.
-5. **Cross-host coordination.** Two hosts cannot share a SQLite file. At that
+7. **Cross-host coordination.** Two hosts cannot share a SQLite file. At that
    point the CAS is the same SQL over Postgres and the permit key moves to a
    secret store.
 

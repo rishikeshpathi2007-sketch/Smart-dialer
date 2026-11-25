@@ -344,5 +344,27 @@ class MidFlightFailureTests(unittest.TestCase):
         self.assertEqual(state, "COMPLETED")
 
 
+class OutageBehaviourTests(unittest.TestCase):
+    def test_outage_pauses_pacing_keeps_borrowers_and_retries_resume(self):
+        dialer, clock, providers, _ = make_env(agents=5, borrowers=20, mode="predictive", answer=0.5)
+        heartbeat_all(dialer, clock, 5)
+        providers[0].outage = True
+        for _ in range(dialer.cfg.breaker_threshold):
+            dialer.allocator.breakers["p1"].fail(clock.now())
+        dialer.tick()
+        self.assertEqual(dialer.last_decision[0].decision, "REJECT")     # pacing paused
+        self.assertEqual(providers[0].dial_count, 0)
+        untouched = dialer.store.conn.execute(
+            "SELECT COUNT(*) FROM borrowers WHERE state='PENDING' AND attempts=0").fetchone()[0]
+        self.assertEqual(untouched, 20)                                  # no retry was used up
+        providers[0].outage = False
+        clock.advance(dialer.cfg.breaker_cooldown + 1)
+        for _ in range(3):
+            heartbeat_all(dialer, clock, 5)
+            dialer.tick()
+            clock.advance(1)
+        self.assertGreater(providers[0].dial_count, 0)                   # dialling resumes
+
+
 if __name__ == "__main__":
     unittest.main()

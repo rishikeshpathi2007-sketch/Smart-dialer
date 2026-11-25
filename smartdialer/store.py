@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS agents (
   version INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS ix_agents_state ON agents(campaign, state);
+-- Claim indexes: they cover the ORDER BY, so "LIMIT 1" stops at the first row.
+-- Without them every claim sorts all waiting rows (the 10,000-agent bottleneck).
+CREATE INDEX IF NOT EXISTS ix_agents_claim ON agents(campaign, state, id);
 
 CREATE TABLE IF NOT EXISTS borrowers (
   id TEXT PRIMARY KEY,
@@ -53,6 +56,7 @@ CREATE TABLE IF NOT EXISTS borrowers (
   version INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS ix_borrowers_ready ON borrowers(campaign, state, next_attempt_at);
+CREATE INDEX IF NOT EXISTS ix_borrowers_claim ON borrowers(campaign, state, next_attempt_at, id);
 
 CREATE TABLE IF NOT EXISTS calls (
   id TEXT PRIMARY KEY,
