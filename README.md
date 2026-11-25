@@ -30,7 +30,7 @@ python -m unittest discover -s tests -v
 Runs scenarios A to E (20%, 50%, 70% answer rates; changing rates with a
 provider outage; sudden loss of 40% of agents) in both modes:
 
-Full run (about 7 minutes on the test machine):
+Full run (about 80 seconds on the test machine):
 
 ```powershell
 python -m smartdialer.simulate --agents 50 --duration 1800
