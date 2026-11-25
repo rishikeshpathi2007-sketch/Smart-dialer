@@ -1,7 +1,7 @@
 # SmartDialer: decision record
 
 **Status:** accepted for the prototype. **Date:** 25 November 2026.
-**Detail:** the reasoning, state machines and failure analysis are in [ARCHITECTURE.md](ARCHITECTURE.md).
+**Detail:** the overview is in [ARCHITECTURE.md](ARCHITECTURE.md), and the full reasoning is in [DESIGN-DETAILS.md](DESIGN-DETAILS.md).
 
 ## Context
 

@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> QUEUED: predictive permit
+    [*] --> RESERVED: progressive permit (agent + borrower claimed)
+    QUEUED --> INITIATED: dispatch
+    RESERVED --> INITIATED: dispatch
+    INITIATED --> RINGING
+    RINGING --> ANSWERED
+    ANSWERED --> CONNECTED: agent claimed
+    ANSWERED --> COMPLETED: no agent (abandoned)
+    CONNECTED --> COMPLETED
+    RINGING --> FAILED: no answer
+    INITIATED --> FAILED: rejected / not found at provider
+    QUEUED --> CANCELLED: permit or lease expired
+    RESERVED --> CANCELLED: lease expired
+    ANSWERED --> COMPLETED: agent lost

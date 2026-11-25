@@ -1,0 +1,11 @@
+flowchart LR
+    C[Campaign] --> P[Pacing Engine<br/>progressive or predictive]
+    P -- "requested n" --> S[Safety Controller]
+    S -- "signed Permit<br/>+ call rows" --> A[Call Allocator]
+    A -- "originate(call_id, number)" --> T[(Telecom Provider<br/>A or B)]
+    T -- "events (dup / out of order)" --> I[Event ingest<br/>dedupe by event_id]
+    I --> DB[(SQLite: agents, borrowers,<br/>calls, events, permits)]
+    S --- DB
+    A --- DB
+    R[Reconciler<br/>query provider for stale calls] --- DB
+    R --> T

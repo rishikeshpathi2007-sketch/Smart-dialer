@@ -1,0 +1,21 @@
+stateDiagram-v2
+    [*] --> OFFLINE
+    OFFLINE --> AVAILABLE
+    OFFLINE --> PAUSED
+    AVAILABLE --> RESERVED: claim (CAS)
+    AVAILABLE --> PAUSED
+    AVAILABLE --> OFFLINE: heartbeat lost
+    RESERVED --> DIALING: call initiated
+    RESERVED --> AVAILABLE: lease expired / call cancelled
+    RESERVED --> OFFLINE: heartbeat lost
+    DIALING --> CONNECTED: call answered
+    DIALING --> AVAILABLE: call failed before answer
+    DIALING --> WRAP_UP: call ended
+    DIALING --> OFFLINE: heartbeat lost
+    CONNECTED --> WRAP_UP: call completed
+    CONNECTED --> OFFLINE: heartbeat lost (call ends as AGENT_LOST)
+    WRAP_UP --> AVAILABLE: wrap-up timer
+    WRAP_UP --> PAUSED
+    WRAP_UP --> OFFLINE: heartbeat lost
+    PAUSED --> AVAILABLE
+    PAUSED --> OFFLINE
