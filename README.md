@@ -170,6 +170,14 @@ The next bottleneck is one database transaction per provider event; see section 
 The 1,000-agent figures above are from the re-run after the index change. The earlier
 1,000-agent run in this README came before the fallback fix, so its dial count differs.
 
+## If something does not work
+
+- **`python` is not found.** On Windows, try `py` instead of `python`, for example `py -m unittest discover -s tests`. If neither works, install Python 3 from python.org.
+- **Module not found, or nothing runs.** Run the commands from the repository folder, the one that contains `smartdialer` and `tests`.
+- **Check the Python version.** Run `python --version`. The code was tested with Python 3.13.
+- **Save the simulation output to a file.** The simulation prints to the terminal. To keep a copy, run `python -m smartdialer.simulate > sim_results.txt`.
+- **No git installed.** On the GitHub page, choose Code, then Download ZIP. Unzip it, and open PowerShell in the unzipped folder.
+
 ## Limitations
 
 * SQLite on one host: several worker processes share a correct database, but

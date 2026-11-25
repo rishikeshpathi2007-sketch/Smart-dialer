@@ -23,6 +23,9 @@ from smartdialer.store import Store
 from smartdialer.allocator import PermitError
 
 
+_OPEN_DIALERS = []   # closed in tearDownModule, so no connection is left for the garbage collector
+
+
 def make_env(agents=5, borrowers=50, mode="progressive", providers=None, cfg=None, answer=0.5, clock=None):
     tmp = tempfile.mkdtemp()
     db = os.path.join(tmp, "dialer.db")
@@ -38,6 +41,7 @@ def make_env(agents=5, borrowers=50, mode="progressive", providers=None, cfg=Non
         providers = [MockProvider("p1", clock, lambda t: answer, seed=7, setup_secs=(1.0, 1.0),
                                   talk_secs_fn=lambda r: 60.0)]
     dialer = Dialer(db, "C", providers, mode=mode, cfg=cfg, clock=clock)
+    _OPEN_DIALERS.append(dialer)
     return dialer, clock, providers, db
 
 
@@ -364,6 +368,11 @@ class OutageBehaviourTests(unittest.TestCase):
             dialer.tick()
             clock.advance(1)
         self.assertGreater(providers[0].dial_count, 0)                   # dialling resumes
+
+
+def tearDownModule():
+    for d in _OPEN_DIALERS:
+        d.close()
 
 
 if __name__ == "__main__":
